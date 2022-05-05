@@ -11,19 +11,18 @@
 
 #define DivUp(x, y) (x + y - 1) / y
 
-template<typename T>
-inline __device__ void WarpReduce(volatile T* sdata, unsigned int tid ){
+template <typename T> inline __device__ void WarpReduce(volatile T* sdata, unsigned int tid)
+{
     T v = T{};
 
-    #pragma unroll
-    for(size_t stride = 32; stride > 0; stride >>=1){
+#pragma unroll
+    for (size_t stride = 32; stride > 0; stride >>= 1) {
         v += sdata[tid + stride];
         __syncwarp();
         sdata[tid] = v;
         __syncwarp();
     }
-
-} 
+}
 
 template <typename T, size_t THREADS_PER_BLOCK> __global__ void Reduce(const T* src, T* dest, size_t N)
 {
@@ -40,7 +39,8 @@ template <typename T, size_t THREADS_PER_BLOCK> __global__ void Reduce(const T* 
         }
         __syncthreads();
     }
-    WarpReduce(sdata,tid);
+    if (tid < 32)
+        WarpReduce(sdata, tid);
 
     if (tid == 0) {
         dest[blockIdx.x] = sdata[0];

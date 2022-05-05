@@ -40,7 +40,8 @@ template <typename T, size_t THREADS_PER_BLOCK> __global__ void Reduce(const T* 
         }
         __syncthreads();
     }
-    WarpReduce(sdata,tid);
+    if (tid < 32)
+        WarpReduce(sdata, tid);
 
     if (tid == 0) {
         dest[blockIdx.x] = sdata[0];
