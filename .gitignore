@@ -30,3 +30,25 @@
 *.exe
 *.out
 *.app
+
+# Build directory
+build
+nbproject/
+install
+
+.vscode/
+
+third_party/*
+bin/
+lib/
+images/
+
+# pypi directory
+dist/
+*egg-info/
+
+gen-cpp/
+gen-java/
+gen-python/
+docker/*.tar.gz
+
