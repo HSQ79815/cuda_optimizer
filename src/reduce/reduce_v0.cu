@@ -5,6 +5,9 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <iomanip>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
 
 #define DivUp(x, y) (x + y - 1) / y
 
@@ -18,7 +21,7 @@ template <typename T, size_t THREADS_PER_BLOCK> __global__ void Reduce(const T* 
     __syncthreads();
 
     for (unsigned int stride = 1; stride < THREADS_PER_BLOCK; stride <<= 1) {
-        if (tid & ((stride << 1) - 1) == 0) {
+        if (!(tid & ((stride << 1) - 1))) {
             sdata[tid] += sdata[tid + stride];
         }
         __syncthreads();
@@ -59,15 +62,30 @@ template <typename T, size_t THREADS_PER_BLOCK> void ReduceCpu(const T* src, T* 
     }
 }
 
+template<typename T>
+void Dump(const T* src, size_t N, const std::string& prefix){
+    std::stringstream ss;
+
+    for(size_t i = 0;i < N; ++i){
+        ss << std::setprecision(7) << src[i] << " ";
+    }
+    LOG(INFO) << prefix << ss.str();
+
+}
+
 int main(int argc, char** argv)
 {
+    gflags::ParseCommandLineFlags(&argc, &argv, true);
+    google::InitGoogleLogging(argv[0]);
+    google::LogToStderr();
+
     using type         = float;
-    constexpr size_t N = 128 * 1024 * 1024;
-
+    constexpr size_t N = 32 * 1024 * 1024;
     constexpr size_t THREADS_PER_BLOCK = 256;
-
     constexpr size_t  dest_N = DivUp(N, THREADS_PER_BLOCK);
-    std::vector<type> cpu_src(N, 1.02);
+    
+    type value{1.02};
+    std::vector<type> cpu_src(N, value);
     std::vector<type> cpu_dest(dest_N);
 
     ReduceCpu<type, THREADS_PER_BLOCK>(&cpu_src[0], &cpu_dest[0], N);
@@ -98,18 +116,21 @@ int main(int argc, char** argv)
     cudaEventElapsedTime(&elapsedTime, start, stop);
     cudaMemcpy(&device_to_cpu[0], device_dest, dest_N * sizeof(type), cudaMemcpyDeviceToHost);
 
-    float epsilon = 1e-5;
+    LOG(INFO) << std::setprecision(9) << "value: " << value << ", N: " << N/(1<<20) << "M";
+
+    float epsilon = 1e-2;
     if (!Check(&cpu_dest[0], &device_to_cpu[0], dest_N, epsilon)) {
-        std::cout << "result wrong!\n";
-        std::cout << cpu_dest[0] << "\t" << cpu_dest[1] << "\t" << cpu_dest[2] << "\t" << cpu_dest[3] << "\t"
-                  << cpu_dest[4] << "\t" << cpu_dest[5] << "\n";
-        std::cout << device_to_cpu[0] << "\t" << device_to_cpu[1] << "\t" << device_to_cpu[2] << "\t"
-                  << device_to_cpu[3] << "\t" << device_to_cpu[4] << "\t" << device_to_cpu[5] << "\n";
+        LOG(INFO) << "result is wrong!,epsilon: " << epsilon;
+
+        Dump<type>(&cpu_dest[0],10,"cpu: ");
+        Dump<type>(&device_to_cpu[0],10, "cuda: ");
+    }else{
+        LOG(INFO << "result is right!";
     }
 
-    std::cout << "average cost: " << elapsedTime << " ms\n";
+    LOG(INFO) << "average cost: " << elapsedTime << " ms";
     float bandwidth = (N + dest_N) * sizeof(type) / elapsedTime * 1000 / (1 << 30);
-    std::cout << "bandwidth: " << bandwidth << " GB/s\n";
+    LOG(INFO) << "bandwidth: " << bandwidth << " GB/s";
 
     cudaFree(device_src);
     cudaFree(device_dest);
