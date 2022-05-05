@@ -24,3 +24,12 @@ target_link_libraries(reduce_v2_512 ${EXTRALIBS})
 
 add_executable(reduce_v2_1024 reduce_v2_1024.cu)
 target_link_libraries(reduce_v2_1024 ${EXTRALIBS})
+
+add_executable(reduce_v3_256 reduce_v3_256.cu)
+target_link_libraries(reduce_v3_256 ${EXTRALIBS})
+
+add_executable(reduce_v3_512 reduce_v3_512.cu)
+target_link_libraries(reduce_v3_512 ${EXTRALIBS})
+
+add_executable(reduce_v3_1024 reduce_v3_1024.cu)
+target_link_libraries(reduce_v3_1024 ${EXTRALIBS})

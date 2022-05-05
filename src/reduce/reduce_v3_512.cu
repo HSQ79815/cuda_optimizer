@@ -11,6 +11,20 @@
 
 #define DivUp(x, y) (x + y - 1) / y
 
+template<typename T>
+inline __device__ void WarpReduce(volatile T* sdata, unsigned int tid ){
+    T v = T{};
+
+    #pragma unroll
+    for(size_t stride = 32; stride > 0; stride >>=1){
+        v += sdata[tid + stride];
+        __syncwarp();
+        sdata[tid] = v;
+        __syncwarp();
+    }
+
+} 
+
 template <typename T, size_t THREADS_PER_BLOCK> __global__ void Reduce(const T* src, T* dest, size_t N)
 {
     __shared__ T sdata[THREADS_PER_BLOCK];
@@ -20,12 +34,14 @@ template <typename T, size_t THREADS_PER_BLOCK> __global__ void Reduce(const T* 
     sdata[tid] = src[idx] + src[idx + THREADS_PER_BLOCK];
     __syncthreads();
 
-    for (unsigned int stride = THREADS_PER_BLOCK / 2; stride > 0; stride >>= 1) {
+    for (unsigned int stride = THREADS_PER_BLOCK / 2; stride > 32; stride >>= 1) {
         if (tid < stride) {
             sdata[tid] += sdata[tid + stride];
         }
         __syncthreads();
     }
+    WarpReduce(sdata,tid);
+
     if (tid == 0) {
         dest[blockIdx.x] = sdata[0];
     }
@@ -80,7 +96,7 @@ int main(int argc, char** argv)
 
     using type                         = float;
     constexpr size_t N                 = 32 * 1024 * 1024;
-    constexpr size_t THREADS_PER_BLOCK = 1024;
+    constexpr size_t THREADS_PER_BLOCK = 512;
     constexpr size_t dest_N            = DivUp(N / 2, THREADS_PER_BLOCK);
 
     type              value{1.02};
@@ -117,7 +133,7 @@ int main(int argc, char** argv)
 
     LOG(INFO) << std::setprecision(9) << "value: " << value << ", N: " << N / (1 << 20) << "M";
 
-    float epsilon = 1e-1;
+    float epsilon = 1e-2;
     if (!Check(&cpu_dest[0], &device_to_cpu[0], dest_N, epsilon)) {
         LOG(INFO) << "result is wrong!,epsilon: " << epsilon;
 
