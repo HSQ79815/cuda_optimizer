@@ -17,8 +17,8 @@ template <typename T, size_t THREADS_PER_BLOCK> __global__ void Reduce(const T* 
     sdata[tid] = idx < N ? src[idx] : T{};
     __syncthreads();
 
-    for (unsigned int stride = 1; stride < THREADS_PER_BLOCK; stride <<= 1) {
-        if (tid & ((stride << 1) - 1) == 0) {
+    for (unsigned int stride = THREADS_PER_BLOCK / 2; stride > 0; stride >>= 1) {
+        if (tid < stride) {
             sdata[tid] += sdata[tid + stride];
         }
         __syncthreads();
