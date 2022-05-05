@@ -27,15 +27,13 @@ template <typename T, size_t THREADS_PER_BLOCK> __global__ void Reduce(const T* 
         }
         __syncthreads();
     }
+    T sum = sdata[tid];
     for(unsigned int stride = 16; stride > 0; stride >>= 1){
-        if (tid < stride){
-            sdata[tid] += sdata[tid + stride];
-        }
-        __syncwarp();
+        sum += __shfl_down_sync(0xffffffff, sum, stride);
     }
 
     if (tid == 0) {
-        dest[blockIdx.x] = sdata[0];
+        dest[blockIdx.x] = sum;
     }
 }
 
