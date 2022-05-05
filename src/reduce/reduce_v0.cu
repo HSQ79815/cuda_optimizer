@@ -125,7 +125,7 @@ int main(int argc, char** argv)
         Dump<type>(&cpu_dest[0],10,"cpu: ");
         Dump<type>(&device_to_cpu[0],10, "cuda: ");
     }else{
-        LOG(INFO << "result is right!";
+        LOG(INFO) << "result is right!";
     }
 
     LOG(INFO) << "average cost: " << elapsedTime << " ms";
