@@ -1,5 +1,17 @@
-add_executable(reduce_v0 reduce_v0.cu)
-target_link_libraries(reduce_v0 ${EXTRALIBS})
+add_executable(reduce_v0_256 reduce_v0_256.cu)
+target_link_libraries(reduce_v0_256 ${EXTRALIBS})
 
-add_executable(reduce_v1 reduce_v1.cu)
-target_link_libraries(reduce_v1 ${EXTRALIBS})
+add_executable(reduce_v0_512 reduce_v0_512.cu)
+target_link_libraries(reduce_v0_512 ${EXTRALIBS})
+
+add_executable(reduce_v0_1024 reduce_v0_1024.cu)
+target_link_libraries(reduce_v0_1024 ${EXTRALIBS})
+
+add_executable(reduce_v1_256 reduce_v1_256.cu)
+target_link_libraries(reduce_v1_256 ${EXTRALIBS})
+
+add_executable(reduce_v1_512 reduce_v1_512.cu)
+target_link_libraries(reduce_v1_512 ${EXTRALIBS})
+
+add_executable(reduce_v1_1024 reduce_v1_1024.cu)
+target_link_libraries(reduce_v1_1024 ${EXTRALIBS})
