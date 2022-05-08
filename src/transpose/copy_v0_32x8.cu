@@ -27,7 +27,7 @@ template <typename T> void __global__ MatrixCopy1D(const T* src, int N, T* dst)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if(x < N)
+    if (x < N)
         dst[x] = src[x];
 }
 
@@ -35,10 +35,21 @@ template <typename T, int NUM> void __global__ MatrixCopy1DVec(const T* src, int
 {
     int x = blockIdx.x * blockDim.x * NUM + threadIdx.x;
 
-    #pragma unroll
-    for (int i = 0; i < NUM; ++i,x += blockDim.x) {
-        if(x < N)
+#pragma unroll
+    for (int i = 0; i < NUM; ++i, x += blockDim.x) {
+        if (x < N)
             dst[x] = src[x];
+    }
+}
+
+template <typename T, typename TN, int NUM> void __global__ MatrixCopy1DVec1(const T* src, int N, T* dst)
+{
+    int x           = (blockIdx.x * blockDim.x + threadIdx.x) * NUM;
+    if(x+NUM < N)
+        *(TN*)(dst + x) = *(TN*)(src + x);
+    else{
+        for(int i = x; i < N; ++i)
+            dst[i] = src[i];
     }
 }
 
@@ -160,15 +171,15 @@ int main(int argc, char** argv)
     }
 
     {
-        constexpr int NUM = 8;
+        constexpr int NUM = 2;
         dim3          block(thread_per_block, 1, 1);
         dim3          grid(DivUp(DivUp(MN, NUM), thread_per_block), 1, 1);
-        MatrixCopy1DVec<type, NUM><<<grid, block>>>(device_src, MN, device_dest);
+        MatrixCopy1DVec1<type, float2, NUM><<<grid, block>>>(device_src, MN, device_dest);
 
         cudaEventRecord(start, 0);
 
         for (int i = 0; i < loop; ++i)
-            MatrixCopy1DVec<type, NUM><<<grid, block>>>(device_src, MN, device_dest);
+            MatrixCopy1DVec1<type, float2, NUM><<<grid, block>>>(device_src, MN, device_dest);
 
         cudaEventRecord(stop, 0);
         cudaEventSynchronize(stop);
@@ -179,6 +190,28 @@ int main(int argc, char** argv)
         float bandwidth = size_in_bytes * 2 / avg_cost * 1000 / (1 << 30);
         LOG(INFO) << "bandwidth: " << bandwidth << " GB/s";
     }
+
+    {
+        constexpr int NUM = 4;
+        dim3          block(thread_per_block, 1, 1);
+        dim3          grid(DivUp(DivUp(MN, NUM), thread_per_block), 1, 1);
+        MatrixCopy1DVec1<type, float4, NUM><<<grid, block>>>(device_src, MN, device_dest);
+
+        cudaEventRecord(start, 0);
+
+        for (int i = 0; i < loop; ++i)
+            MatrixCopy1DVec1<type, float4, NUM><<<grid, block>>>(device_src, MN, device_dest);
+
+        cudaEventRecord(stop, 0);
+        cudaEventSynchronize(stop);
+        cudaEventElapsedTime(&elapsedTime, start, stop);
+        float avg_cost = elapsedTime / loop;
+        LOG(INFO) << "================1D: " << thread_per_block << " NUM:" << NUM << "==================";
+        LOG(INFO) << "average cost: " << avg_cost << " ms";
+        float bandwidth = size_in_bytes * 2 / avg_cost * 1000 / (1 << 30);
+        LOG(INFO) << "bandwidth: " << bandwidth << " GB/s";
+    }
+
     cudaFree(device_src);
     cudaFree(device_dest);
     cudaEventDestroy(start);
